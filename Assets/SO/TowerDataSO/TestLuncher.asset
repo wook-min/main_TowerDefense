@@ -16,11 +16,11 @@ MonoBehaviour:
   towerName: TowerLuncher
   cost: 15
   damage: 20
-  attackRange: 20
+  attackRange: 10
   attackInterval: 2
   monsterLayer:
     serializedVersion: 2
-    m_Bits: 0
-  projectileData: {fileID: 11400000, guid: ccb11473b2cf5b2439f0edd3b4d28434, type: 2}
-  bullet: {fileID: 0}
-  towerPF: {fileID: 0}
+    m_Bits: 64
+  projectileData: {fileID: 11400000, guid: 4df76543a904f20458827d0e99690400, type: 2}
+  bullet: {fileID: 5083330694576680963, guid: b47cd3198bdb41e4c84c691ad9e61d8d, type: 3}
+  towerPF: {fileID: 6451708471463169753, guid: c9c33a53087dc9d4fb3146333e4b09c9, type: 3}

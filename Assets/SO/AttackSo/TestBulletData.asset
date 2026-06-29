@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileBulletData
   projectilePF: {fileID: 8780727661788297695, guid: 18d2b03dab4102b4fa5cd7aba5a5e404, type: 3}
   attackType: 0
-  projectileSpeed: 50
+  projectileSpeed: 30
   explosionRadius: 1
   targetLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
   hitEffectPF: {fileID: 1835174905073365006, guid: ca384fe1efcc88547ba1d18ab9a53131, type: 3}
