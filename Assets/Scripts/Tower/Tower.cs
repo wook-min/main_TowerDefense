@@ -1,6 +1,8 @@
+
+using System.Collections;
 using UnityEngine;
 
-public class Tower : MonoBehaviour
+public class Tower : BuildingBase
 {
     [Header("Tower Data")]
     [SerializeField] private TowerData towerData;
@@ -10,7 +12,7 @@ public class Tower : MonoBehaviour
 
     [Header("Projectile Data")]
     [SerializeField] private ProjectileData projectileData;
-    
+    [SerializeField] private HitBoxAttackData hitBoxAttackData;
 
     [Header("Target")]
     [SerializeField] private LayerMask monsterLayer;
@@ -20,31 +22,56 @@ public class Tower : MonoBehaviour
     [SerializeField] private float rotateSpeed = 10f;
 
     private float attackTimer;
+    private bool isAttacking;
+
+    private void Awake()
+    {
+        if (towerData == null)
+        {
+            Debug.LogError($"{name} : TowerData 없음");
+            enabled = false;
+            return;
+        }
+
+        switch (towerData.attackMode)
+        {
+            case TowerAttackMode.Projectile:
+
+                if (towerData.projectileData == null)
+                {
+                    Debug.LogError($"{name} : ProjectileData 없음");
+                    enabled = false;
+                }
+
+                break;
+
+            case TowerAttackMode.HitBox:
+
+                if (towerData.hitBoxAttackData == null)
+                {
+                    Debug.LogError($"{name} : HitBoxAttackData 없음");
+                    enabled = false;
+                }
+
+                break;
+        }
+    }
 
     private void Update()
     {
-        //Debug.Log($"{name} Tower Update 실행");
-
-
-        if (towerData == null || towerData.projectileData == null)
-            return;
-
         attackTimer += Time.deltaTime;
 
         Transform target = FindTarget();
 
         if (target == null)
-        {
-            //Debug.Log("타겟 없음");
             return;
-        }
-        //Debug.Log($"타겟 발견 : {target.name}");
+
         RotateToTarget(target);
 
-        if(attackTimer >= towerData.attackInterval)
+        if (attackTimer >= towerData.attackInterval)
         {
-            attackTimer = 0;
-            Shoot(target);
+            attackTimer = 0f;
+            Attack(target);
         }
 
     }
@@ -76,16 +103,35 @@ public class Tower : MonoBehaviour
     }
     #endregion
 
-    #region 발사 메서드
-    private void Shoot(Transform target)
+    #region 공격 메서드
+    private void Attack(Transform target)
     {
+        switch (towerData.attackMode)
+        {
+            case TowerAttackMode.Projectile:
+                ShootProjectile(target);
+                break;
+
+            case TowerAttackMode.HitBox:
+                if (!isAttacking)
+                    StartCoroutine(UseHitBoxAttack(target));
+                break;
+        }
+
+    }
+    #endregion
+
+    #region 투사체 발사
+    private void ShootProjectile(Transform target)
+    {
+
         if (ObjectPoolManager.Instance == null)
         {
             Debug.LogError("ObjectPoolManager.Instance가 null입니다. 씬에 ObjectPoolManager 오브젝트가 없습니다.");
             return;
         }
 
-        if(firePoint == null)
+        if (firePoint == null)
             return;
 
         GameObject prefab = towerData.projectileData.projectilePF;
@@ -97,24 +143,89 @@ public class Tower : MonoBehaviour
             (prefab, firePoint.position, firePoint.rotation, ObjectPoolManager.Instance.GetProjectileParent());
 
         if (projectile == null)
-            return;
-
-        projectile.Initialize(
-            target,
-            towerData.damage,
-            towerData.projectileData
-        );
-
-        if(projectile == null)
         {
             Debug.LogError($"{prefab.name}에 Projectile 컴포넌트가 없음");
             return;
         }
-
         projectile.Initialize(target, towerData.damage, towerData.projectileData);
+
     }
     #endregion
 
+    #region 히트박사 발사
+    private IEnumerator UseHitBoxAttack(Transform target)
+    {
+        if (ObjectPoolManager.Instance == null)
+        {
+            Debug.LogError("ObjectPoolManager.Instance가 null입니다.");
+            yield break;
+        }
+
+        if (towerData.hitBoxAttackData == null)
+        {
+            Debug.LogError($"{name} : hitBoxAttackData 없음");
+            yield break;
+        }
+
+        isAttacking = true;
+
+        GameObject prefab = towerData.hitBoxAttackData.hitBoxPrefab;
+
+        if (prefab == null)
+        {
+            Debug.LogError($"{name} : hitBoxPrefab 없음");
+            yield break;
+        }
+
+        AreaHitBox hitBox = ObjectPoolManager.Instance.Spawn<AreaHitBox>(
+            prefab,
+            firePoint.position,
+            firePoint.rotation,
+            ObjectPoolManager.Instance.GetEffectParent()
+            );
+
+        if (hitBox == null)
+        {
+            Debug.LogError($"{prefab.name} : AreaHitBox Spawn 실패");
+            yield break;
+        }
+
+        hitBox.transform.SetParent(firePoint);
+        hitBox.transform.localPosition = Vector3.zero;
+        hitBox.transform.localRotation = Quaternion.identity;
+
+
+        hitBox.Initialize(
+            target,
+            towerData.damage,
+            towerData.monsterLayer,
+            towerData.hitBoxAttackData
+        );
+
+        float timer = 0f;
+
+        while (timer < towerData.hitBoxAttackData.activeTime)
+        {
+            if (target == null)
+                break;
+
+            float distance = Vector3.Distance(transform.position, target.position);
+
+            if (distance > towerData.attackRange)
+                break;
+
+            RotateToTarget(target);
+
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        hitBox.transform.SetParent(ObjectPoolManager.Instance.GetEffectParent());
+
+        ObjectPoolManager.Instance.Despawn(hitBox);
+        isAttacking = false;
+    }
+    #endregion
     #region 타겟 추적 메서드
     private void RotateToTarget(Transform target)
     {
@@ -133,7 +244,7 @@ public class Tower : MonoBehaviour
     #endregion
 
     #region 범위 표시 Gizmos
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
         if (towerData == null)
             return;
